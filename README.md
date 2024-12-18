@@ -1,61 +1,126 @@
 # To-Do List API
 
-A simple RESTful API for managing personal to-do lists with user authentication and CRUD functionality.
+A Django REST API for managing personal to-do lists with user authentication and CRUD functionality.
 
-## Hosted API
+## Features
+- User registration and authentication using JWT tokens
+- Create, read, update, and delete todo items
+- User-specific todo lists
+- RESTful API endpoints
 
-- **URL**: [https://brayden-todo-151e08866201.herokuapp.com/](https://brayden-todo-151e08866201.herokuapp.com/)
+## API Endpoints
 
-## Endpoints
+### Authentication
 
-### 1. **User Registration**
+#### Register User
+- **POST** `/api/register/`
+- **Body**:
+```json
+{
+    "name": "username",
+    "email": "user@example.com",
+    "password": "yourpassword"
+}
+```
+- **Response**: JWT access token and user details
 
-- **POST** `/register`
-- **Body**: `{ "name": "John", "email": "john@doe.com", "password": "password" }`
-- **Response**: `{ "token": "<JWT_TOKEN>" }`
+#### Login
+- **POST** `/api/login/`
+- **Body**:
+```json
+{
+    "name": "username",  // or email address
+    "password": "yourpassword"
+}
+```
+- **Response**: JWT access token and user details
 
-### 2. **User Login**
+### Todo Operations
 
-- **POST** `/login`
-- **Body**: `{ "email": "john@doe.com", "password": "password" }`
-- **Response**: `{ "token": "<JWT_TOKEN>" }`
+All todo operations require authentication. Include the JWT token in the Authorization header:
+`Authorization: Bearer <your_jwt_token>`
 
-### 3. **Create To-Do Item**
-
-- **POST** `/todos`
-- **Headers**: `Authorization: <token>`
-- **Body**: `{ "title": "Buy groceries", "description": "Buy milk" }`
-- **Response**: `{ "id": 1, "title": "Buy groceries", "description": "Buy milk" }`
-
-### 4. **Update To-Do Item**
-
-- **PUT** `/todos/:id`
-- **Headers**: `Authorization: <token>`
-- **Body**: `{ "title": "New Title", "description": "New Description" }`
-- **Response**: `{ "id": 1, "title": "New Title", "description": "New Description" }`
-
-### 5. **Delete To-Do Item**
-
-- **DELETE** `/todos/:id`
-- **Headers**: `Authorization: <token>`
-- **Response**: Status `204 No Content`
-
-### 6. **Get To-Do Items**
-
-- **GET** `/todos?page=1&limit=10`
-- **Headers**: `Authorization: <token>`
+#### Get All Todos
+- **GET** `/api/todos/`
+- **Query Parameters**: 
+  - `page`: Page number (optional)
+  - `limit`: Items per page (optional)
 - **Response**:
-  ```json
-  {
-    "data": [{ "id": 1, "title": "Task", "description": "Description" }],
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "title": "Task Title",
+            "description": "Task Description",
+            "created_at": "timestamp",
+            "updated_at": "timestamp"
+        }
+    ],
     "page": 1,
     "limit": 10,
     "total": 1
-  }
-  ```
+}
+```
+
+#### Create Todo
+- **POST** `/api/todos/`
+- **Body**:
+```json
+{
+    "title": "Task Title",
+    "description": "Task Description"
+}
+```
+
+#### Update Todo
+- **PUT** `/api/todos/{id}/`
+- **Body**:
+```json
+{
+    "title": "Updated Title",
+    "description": "Updated Description"
+}
+```
+
+#### Delete Todo
+- **DELETE** `/api/todos/{id}/`
 
 ## Local Setup
 
-1. Clone repo, install dependencies: `npm install`
-2. Set up `.env` with `JWT_SECRET` and `MONGO_URI`
-3. Run locally: `npm start`
+1. Clone the repository
+```bash
+git clone <repository-url>
+```
+
+2. Create and activate a virtual environment
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+4. Set up environment variables
+Create a `.env` file in the root directory with:
+```
+SECRET_KEY=your_secret_key
+```
+
+5. Run migrations
+```bash
+python manage.py migrate
+```
+
+6. Start the development server
+```bash
+python manage.py runserver
+```
+
+The API will be available at `http://localhost:8000/`
+
+## Testing
+You can use the provided `api-tests.http` file to test the endpoints if you're using VS Code with the REST Client extension.
