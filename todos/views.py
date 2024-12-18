@@ -15,13 +15,20 @@ class RegisterView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            # Convert 'name' to 'username' in the request data
             data = request.data.copy()
-            if 'name' in data:
+            
+            # Ensure either name or username is present
+            if 'name' in data and 'username' not in data:
                 data['username'] = data.pop('name')
+            elif 'username' in data and 'name' not in data:
+                data['name'] = data['username']
             
             serializer = self.get_serializer(data=data)
-            serializer.is_valid(raise_exception=True)
+            if not serializer.is_valid():
+                return Response(
+                    {'error': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Check if user already exists
             if User.objects.filter(username=data['username']).exists():
