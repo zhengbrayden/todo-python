@@ -30,10 +30,15 @@ class RegisterView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Check if user already exists
+            # Check if user already exists by username or email
             if User.objects.filter(username=data['username']).exists():
                 return Response(
-                    {'error': 'User already exists'}, 
+                    {'error': 'Username already exists'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if User.objects.filter(email=data['email']).exists():
+                return Response(
+                    {'error': 'Email already exists'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
@@ -90,12 +95,18 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Try to get user by username first, then by email
-            try:
-                user = User.objects.get(username=username)
-            except User.DoesNotExist:
+            # Check if login is via email or username
+            if '@' in username:
                 try:
                     user = User.objects.get(email=username)
+                except User.DoesNotExist:
+                    return Response(
+                        {'error': 'User not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                try:
+                    user = User.objects.get(username=username)
                 except User.DoesNotExist:
                     return Response(
                         {'error': 'User not found'},
