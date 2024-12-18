@@ -8,12 +8,31 @@ Content-Type: application/json
     "email": "test@example.com"
 }
 
-### Login and get token
+### Register another user (should fail if username exists)
+POST http://localhost:8000/api/register/
+Content-Type: application/json
+
+{
+    "name": "testuser",
+    "password": "testpass123",
+    "email": "test2@example.com"
+}
+
+### Login with username
 POST http://localhost:8000/api/login/
 Content-Type: application/json
 
 {
     "name": "testuser",
+    "password": "testpass123"
+}
+
+### Login with email
+POST http://localhost:8000/api/login/
+Content-Type: application/json
+
+{
+    "name": "test@example.com",
     "password": "testpass123"
 }
 

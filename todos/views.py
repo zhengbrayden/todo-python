@@ -14,13 +14,36 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'token': str(refresh.access_token),
-        })
+        try:
+            # Convert 'name' to 'username' in the request data
+            data = request.data.copy()
+            if 'name' in data:
+                data['username'] = data.pop('name')
+            
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Check if user already exists
+            if User.objects.filter(username=data['username']).exists():
+                return Response(
+                    {'error': 'User already exists'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'token': str(refresh.access_token),
+                'user': {
+                    'username': user.username,
+                    'email': user.email
+                }
+            })
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class TodoViewSet(viewsets.ModelViewSet):
     serializer_class = TodoSerializer
@@ -49,18 +72,48 @@ class TodoViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        
         try:
-            user = User.objects.get(email=email)
-            user = authenticate(username=user.username, password=password)
-            if user:
-                refresh = RefreshToken.for_user(user)
+            # Handle both name/username and email login
+            username = request.data.get('name') or request.data.get('username')
+            password = request.data.get('password')
+            
+            if not username or not password:
+                return Response(
+                    {'error': 'Username and password are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Try to get user by username first, then by email
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                try:
+                    user = User.objects.get(email=username)
+                except User.DoesNotExist:
+                    return Response(
+                        {'error': 'User not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+            # Authenticate user
+            authenticated_user = authenticate(username=user.username, password=password)
+            if authenticated_user:
+                refresh = RefreshToken.for_user(authenticated_user)
                 return Response({
-                    'token': str(refresh.access_token)
+                    'token': str(refresh.access_token),
+                    'user': {
+                        'username': authenticated_user.username,
+                        'email': authenticated_user.email
+                    }
                 })
             else:
-                return Response({'error': 'Invalid credentials'}, status=400)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=404)
+                return Response(
+                    {'error': 'Invalid credentials'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
