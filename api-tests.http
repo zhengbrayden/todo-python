@@ -1,12 +1,34 @@
-### Get all todos
+### Register a new user
+POST http://localhost:8000/api/register/
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "testpass123",
+    "email": "test@example.com"
+}
+
+### Login and get token
+POST http://localhost:8000/api/login/
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "testpass123"
+}
+
+### Get all todos (with auth)
 GET http://localhost:8000/api/todos/
+Authorization: Bearer your_access_token_here
 
-### Get a single todo
+### Get a single todo (with auth)
 GET http://localhost:8000/api/todos/1/
+Authorization: Bearer your_access_token_here
 
-### Create a new todo
+### Create a new todo (with auth)
 POST http://localhost:8000/api/todos/
 Content-Type: application/json
+Authorization: Bearer your_access_token_here
 
 {
     "title": "Test Todo",
@@ -14,9 +36,10 @@ Content-Type: application/json
     "completed": false
 }
 
-### Update a todo
+### Update a todo (with auth)
 PUT http://localhost:8000/api/todos/1/
 Content-Type: application/json
+Authorization: Bearer your_access_token_here
 
 {
     "title": "Updated Todo",
@@ -24,5 +47,6 @@ Content-Type: application/json
     "completed": true
 }
 
-### Delete a todo
+### Delete a todo (with auth)
 DELETE http://localhost:8000/api/todos/1/
+Authorization: Bearer your_access_token_here
