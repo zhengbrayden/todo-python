@@ -23,7 +23,7 @@ POST http://localhost:8000/api/login/
 Content-Type: application/json
 
 {
-    "name": "testuser",
+    "name": "testus",
     "password": "testpass123"
 }
 
@@ -38,16 +38,16 @@ Content-Type: application/json
 
 ### Get all todos (with auth)
 GET http://localhost:8000/api/todos/
-Authorization: Bearer your_access_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
 
 ### Get a single todo (with auth)
 GET http://localhost:8000/api/todos/1/
-Authorization: Bearer your_access_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
 
 ### Create a new todo (with auth)
 POST http://localhost:8000/api/todos/
 Content-Type: application/json
-Authorization: Bearer your_access_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
 
 {
     "title": "Test Todo",
@@ -58,7 +58,7 @@ Authorization: Bearer your_access_token_here
 ### Update a todo (with auth)
 PUT http://localhost:8000/api/todos/1/
 Content-Type: application/json
-Authorization: Bearer your_access_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
 
 {
     "title": "Updated Todo",
@@ -68,4 +68,4 @@ Authorization: Bearer your_access_token_here
 
 ### Delete a todo (with auth)
 DELETE http://localhost:8000/api/todos/1/
-Authorization: Bearer your_access_token_here
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
