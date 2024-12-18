@@ -3,11 +3,12 @@ from django.contrib.auth.models import User
 from .models import Todo
 
 class UserSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='username')
     password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password')
+        fields = ('id', 'name', 'email', 'password')
 
     def create(self, validated_data):
         user = User.objects.create_user(
