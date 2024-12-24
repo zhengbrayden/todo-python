@@ -10,19 +10,19 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', CustomTokenObtainPairView.as_view(), name='login'),
     
-    # Game lobby endpoints
+    # Lobby management
     path('lobby/create/<str:lobby_name>/', LobbyView.as_view(), name='create_lobby'),
     path('lobby/join/<str:lobby_name>/', LobbyView.as_view(), name='join_lobby'),
     path('lobby/leave/', LobbyView.as_view(), name='leave_lobby'),
+    
+    # Game state/info
+    path('lobby/info/', LobbyView.as_view(), name='list_lobbies'),
+    path('lobby/info/<str:lobby_name>/', LobbyView.as_view(), name='lobby_info'),
+    path('lobby/status/', LobbyView.as_view(), name='player_status'),
+    
+    # Game actions
     path('lobby/start/', LobbyView.as_view(), name='start_game'),
-    
-    # Game info endpoints
-    path('lobby/info/', LobbyView.as_view(), name='list_lobbies'),  # all lobbies
-    path('lobby/info/<str:lobby_name>/', LobbyView.as_view(), name='lobby_info'),  # specific lobby
-    path('player/info/', LobbyView.as_view(), name='player_info'),
-    
-    # Game action endpoints
-    path('game/call/', LobbyView.as_view(), name='call'),
-    path('game/fold/', LobbyView.as_view(), name='fold'),
-    path('game/raise/', LobbyView.as_view(), name='raise_bet'),
+    path('lobby/call/', LobbyView.as_view(), name='call'),
+    path('lobby/fold/', LobbyView.as_view(), name='fold'),
+    path('lobby/raise/', LobbyView.as_view(), name='raise_bet'),
 ]

@@ -154,11 +154,11 @@ class LobbyView(APIView):
             return self.join_lobby(request, lobby_name)
         elif self.request.path.startswith('/lobby/start/'):
             return self.start_game(request)
-        elif self.request.path.startswith('/game/call/'):
+        elif self.request.path.startswith('/lobby/call/'):
             return self.call(request)
-        elif self.request.path.startswith('/game/fold/'):
+        elif self.request.path.startswith('/lobby/fold/'):
             return self.fold(request)
-        elif self.request.path.startswith('/game/raise/'):
+        elif self.request.path.startswith('/lobby/raise/'):
             return self.raise_bet(request)
         return Response({'error': 'Invalid endpoint'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -168,8 +168,8 @@ class LobbyView(APIView):
             if lobby_name:
                 return self.get_lobby_info(request, lobby_name)
             return self.list_lobbies(request)
-        elif self.request.path.startswith('/player/info/'):
-            return self.get_player_info(request)
+        elif self.request.path.startswith('/lobby/status/'):
+            return self.get_player_status(request)
         return Response({'error': 'Invalid endpoint'}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request):
@@ -203,9 +203,9 @@ class LobbyView(APIView):
         # TODO: Implement get specific lobby info logic
         return Response({'message': f'Info for lobby: {lobby_name}'})
 
-    def get_player_info(self, request):
-        # TODO: Implement get player info logic
-        return Response({'message': 'Player info'})
+    def get_player_status(self, request):
+        # TODO: Implement get player status in current lobby
+        return Response({'message': 'Player status in current lobby'})
 
     def call(self, request):
         # TODO: Implement call action logic
