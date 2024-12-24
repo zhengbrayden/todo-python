@@ -18,11 +18,9 @@ class RegisterView(generics.CreateAPIView):
         try:
             data = request.data.copy()
             
-            # Ensure either name or username is present
-            if 'name' in data and 'username' not in data:
+            # Create username field from name field for django
+            if 'name' in data:
                 data['username'] = data.pop('name')
-            elif 'username' in data and 'name' not in data:
-                data['name'] = data['username']
             
             serializer = self.get_serializer(data=data)
             if not serializer.is_valid():
@@ -47,10 +45,6 @@ class RegisterView(generics.CreateAPIView):
             refresh = RefreshToken.for_user(user)
             return Response({
                 'token': str(refresh.access_token),
-                'user': {
-                    'username': user.username,
-                    'email': user.email
-                }
             })
         except Exception as e:
             return Response(
@@ -83,6 +77,7 @@ class TodoViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
 class HomeView(TemplateView):
     template_name = 'home.html'
 
@@ -90,7 +85,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         try:
             # Handle both name/username and email login
-            username = request.data.get('name') or request.data.get('username')
+            username = request.data.get('name')
             password = request.data.get('password')
             
             if not username or not password:
@@ -123,10 +118,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 refresh = RefreshToken.for_user(authenticated_user)
                 return Response({
                     'token': str(refresh.access_token),
-                    'user': {
-                        'username': authenticated_user.username,
-                        'email': authenticated_user.email
-                    }
                 })
             else:
                 return Response(
