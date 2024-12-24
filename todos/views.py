@@ -309,6 +309,9 @@ class LobbyView(APIView):
             lobby.current_pot += call_amount
             lobby.save()
 
+            # Check if we should advance game state
+            self.advance_game_state(lobby)
+
             return Response({
                 'message': 'Call successful',
                 'amount': call_amount,
@@ -356,9 +359,11 @@ class LobbyView(APIView):
                 winner.chips += lobby.current_pot
                 winner.save()
                 
-                lobby.current_pot = 0
-                lobby.current_bet = 0
-                lobby.save()
+                # Start new round
+                self.end_round(lobby)
+            else:
+                # Check if we should advance game state
+                self.advance_game_state(lobby)
 
             return Response({
                 'message': 'Fold successful',
@@ -369,6 +374,113 @@ class LobbyView(APIView):
                 {'error': 'Not currently in any lobby'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    def advance_game_state(self, lobby):
+        """Helper method to advance game state after all players have acted"""
+        current_round = lobby.rounds.last()
+        active_players = lobby.players.filter(is_active=True, has_folded=False)
+        
+        # Check if all active players have acted (no one's turn)
+        if not any(player.is_turn for player in active_players):
+            if current_round.current_stage == 'PREFLOP':
+                current_round.current_stage = 'FLOP'
+            elif current_round.current_stage == 'FLOP':
+                current_round.current_stage = 'TURN'
+            elif current_round.current_stage == 'TURN':
+                current_round.current_stage = 'RIVER'
+            elif current_round.current_stage == 'RIVER':
+                self.end_round(lobby)
+                return
+            
+            current_round.save()
+            
+            # Reset betting for new stage
+            lobby.current_bet = 0
+            for player in active_players:
+                player.current_bet = 0
+                player.save()
+            
+            # Set next player's turn
+            next_player = self.get_next_player(lobby)
+            if next_player:
+                next_player.is_turn = True
+                next_player.save()
+
+    def end_round(self, lobby):
+        """Handle end of round logic"""
+        active_players = lobby.players.filter(is_active=True, has_folded=False)
+        
+        # For now, just give pot to last remaining player or split among active players
+        if active_players.count() == 1:
+            winner = active_players.first()
+        else:
+            # In a real implementation, you would evaluate hands here
+            # For now, just split the pot
+            split_amount = lobby.current_pot // active_players.count()
+            for player in active_players:
+                player.chips += split_amount
+                player.save()
+            
+            if lobby.current_pot % active_players.count() > 0:
+                # Give remainder to first player
+                active_players.first().chips += lobby.current_pot % active_players.count()
+                active_players.first().save()
+
+        # Reset game state for next round
+        lobby.current_pot = 0
+        lobby.current_bet = 0
+        lobby.save()
+
+        # Start new round
+        current_round = lobby.rounds.last()
+        new_dealer_position = (current_round.dealer_position + 1) % active_players.count()
+        
+        GameRound.objects.create(
+            lobby=lobby,
+            round_number=current_round.round_number + 1,
+            dealer_position=new_dealer_position
+        )
+
+        # Reset player states
+        for player in lobby.players.filter(is_active=True):
+            player.has_folded = False
+            player.current_bet = 0
+            player.is_turn = False
+            player.save()
+
+        # Set first player's turn
+        next_player = self.get_next_player(lobby)
+        if next_player:
+            next_player.is_turn = True
+            next_player.save()
+
+    def get_next_player(self, lobby):
+        """Get the next player in turn order"""
+        current_round = lobby.rounds.last()
+        active_players = lobby.players.filter(
+            is_active=True,
+            has_folded=False
+        ).order_by('position')
+        
+        if not active_players.exists():
+            return None
+
+        # Find current player
+        current_player = active_players.filter(is_turn=True).first()
+        
+        if not current_player:
+            # If no current player, start with player after dealer
+            dealer_position = current_round.dealer_position
+            next_players = active_players.filter(position__gt=dealer_position)
+            if next_players.exists():
+                return next_players.first()
+            return active_players.first()
+        
+        # Find next player after current
+        next_players = active_players.filter(position__gt=current_player.position)
+        if next_players.exists():
+            return next_players.first()
+        return active_players.first()
 
     def raise_bet(self, request):
         amount = request.data.get('amount')
@@ -424,6 +536,9 @@ class LobbyView(APIView):
             lobby.current_pot += total_amount
             lobby.current_bet = player.current_bet
             lobby.save()
+
+            # Check if we should advance game state
+            self.advance_game_state(lobby)
 
             return Response({
                 'message': 'Raise successful',
