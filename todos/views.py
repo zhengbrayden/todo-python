@@ -12,62 +12,7 @@ from .serializers import (
     PlayerSerializer, GameRoundSerializer
 )
 from rest_framework.views import APIView
-                                                                                                                                                                 
-class TodoView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    # GET /todos/
-    def get(self, request):
-        todos = Todo.objects.filter(user=request.user)
-        serializer = TodoSerializer(todos, many=True)
-        return Response(serializer.data)
-    
-    # POST /todos/
-    def post(self, request):
-        serializer = TodoSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# For individual todo operations
-class TodoDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get_object(self, pk, user):
-        try:
-            return Todo.objects.get(pk=pk, user=user)
-        except Todo.DoesNotExist:
-            return None
-    
-    # GET /todos/<pk>/
-    def get(self, request, pk):
-        todo = self.get_object(pk, request.user)
-        if not todo:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        serializer = TodoSerializer(todo)
-        return Response(serializer.data)
-    
-    # PUT /todos/<pk>/
-    def put(self, request, pk):
-        todo = self.get_object(pk, request.user)
-        if not todo:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        serializer = TodoSerializer(todo, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    # DELETE /todos/<pk>/
-    def delete(self, request, pk):
-        todo = self.get_object(pk, request.user)
-        if not todo:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        todo.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-                                                                                                                                                                 
-                                                                                                                                                                 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
@@ -117,31 +62,6 @@ class RegisterView(generics.CreateAPIView):
 #  • PUT /todos/{id}/ - Update todo
 #  • PATCH /todos/{id}/ - Partial update todo
 #  • DELETE /todos/{id}/ - Delete todo
-class TodoViewSet(viewsets.ModelViewSet):
-    serializer_class = TodoSerializer
-    permission_classes = (IsAuthenticated,)
-
-    def get_queryset(self):
-        return Todo.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return Response({
-                'data': serializer.data,
-                'page': int(request.query_params.get('page', 1)),
-                'limit': int(request.query_params.get('limit', 10)),
-                'total': self.get_queryset().count()
-            })
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
 
 class HomeView(TemplateView):
     template_name = 'home.html'
