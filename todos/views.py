@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from .models import Todo
 from .serializers import TodoSerializer, UserSerializer
- from rest_framework.views import APIView
+from rest_framework.views import APIView
                                                                                                                                                                  
  from rest_framework.views import APIView
  from rest_framework.response import Response
@@ -201,6 +201,88 @@ class TodoViewSet(viewsets.ModelViewSet):
 
 class HomeView(TemplateView):
     template_name = 'home.html'
+
+class LobbyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, lobby_name=None):
+        # Determine which action to take based on the endpoint
+        if self.request.path.startswith('/lobby/create/'):
+            return self.create_lobby(request, lobby_name)
+        elif self.request.path.startswith('/lobby/join/'):
+            return self.join_lobby(request, lobby_name)
+        elif self.request.path.startswith('/lobby/start/'):
+            return self.start_game(request)
+        elif self.request.path.startswith('/game/call/'):
+            return self.call(request)
+        elif self.request.path.startswith('/game/fold/'):
+            return self.fold(request)
+        elif self.request.path.startswith('/game/raise/'):
+            return self.raise_bet(request)
+        return Response({'error': 'Invalid endpoint'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, lobby_name=None):
+        # Handle GET requests for info endpoints
+        if self.request.path.startswith('/lobby/info/'):
+            if lobby_name:
+                return self.get_lobby_info(request, lobby_name)
+            return self.list_lobbies(request)
+        elif self.request.path.startswith('/player/info/'):
+            return self.get_player_info(request)
+        return Response({'error': 'Invalid endpoint'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        # Handle leave lobby
+        if self.request.path.startswith('/lobby/leave/'):
+            return self.leave_lobby(request)
+        return Response({'error': 'Invalid endpoint'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Individual action methods
+    def create_lobby(self, request, lobby_name):
+        # TODO: Implement lobby creation logic
+        return Response({'message': f'Created lobby: {lobby_name}'})
+
+    def join_lobby(self, request, lobby_name):
+        # TODO: Implement join lobby logic
+        return Response({'message': f'Joined lobby: {lobby_name}'})
+
+    def leave_lobby(self, request):
+        # TODO: Implement leave lobby logic
+        return Response({'message': 'Left lobby'})
+
+    def start_game(self, request):
+        # TODO: Implement start game logic
+        return Response({'message': 'Game started'})
+
+    def list_lobbies(self, request):
+        # TODO: Implement list all lobbies logic
+        return Response({'message': 'List of all lobbies'})
+
+    def get_lobby_info(self, request, lobby_name):
+        # TODO: Implement get specific lobby info logic
+        return Response({'message': f'Info for lobby: {lobby_name}'})
+
+    def get_player_info(self, request):
+        # TODO: Implement get player info logic
+        return Response({'message': 'Player info'})
+
+    def call(self, request):
+        # TODO: Implement call action logic
+        return Response({'message': 'Called'})
+
+    def fold(self, request):
+        # TODO: Implement fold action logic
+        return Response({'message': 'Folded'})
+
+    def raise_bet(self, request):
+        # Amount should be passed in request body
+        amount = request.data.get('amount')
+        if not amount:
+            return Response({'error': 'Amount required for raise'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        # TODO: Implement raise logic
+        return Response({'message': f'Raised by {amount}'})
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
