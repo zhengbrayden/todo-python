@@ -1,46 +1,37 @@
-import pytest
+from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 from todos.models import Lobby, Player, GameRound
 from django.urls import reverse
 
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-@pytest.fixture
-def test_users():
-    users = []
-    for i in range(4):
-        user = User.objects.create_user(
-            username=f'testuser{i}',
-            password='testpass123'
+class GameFlowTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        
+        # Create test users
+        self.users = []
+        for i in range(4):
+            user = User.objects.create_user(
+                username=f'testuser{i}',
+                password='testpass123'
+            )
+            self.users.append(user)
+            
+        # Create test lobby
+        self.lobby = Lobby.objects.create(
+            name='test_lobby',
+            creator=self.users[0],
+            status='WAITING'
         )
-        users.append(user)
-    return users
-
-@pytest.fixture
-def test_lobby(test_users):
-    lobby = Lobby.objects.create(
-        name='test_lobby',
-        creator=test_users[0],
-        status='WAITING'
-    )
-    return lobby
-
-@pytest.fixture
-def game_with_players(test_lobby, test_users):
-    for i, user in enumerate(test_users):
-        Player.objects.create(
-            user=user,
-            lobby=test_lobby,
-            position=i,
-            chips=1000
-        )
-    return test_lobby
-
-@pytest.mark.django_db
-class TestGameFlow:
+        
+        # Add players to lobby
+        for i, user in enumerate(self.users):
+            Player.objects.create(
+                user=user,
+                lobby=self.lobby,
+                position=i,
+                chips=1000
+            )
     def test_create_lobby(self, api_client, test_users):
         user = test_users[0]
         api_client.force_authenticate(user=user)

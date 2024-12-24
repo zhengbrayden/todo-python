@@ -1,7 +1,8 @@
-import pytest
+from django.test import TestCase
 from todos.poker_utils import *
 
-def test_create_deck():
+class PokerUtilsTests(TestCase):
+    def test_create_deck(self):
     deck = create_deck()
     assert len(deck) == 52
     # Check all combinations exist
@@ -9,7 +10,7 @@ def test_create_deck():
         for rank in RANKS:
             assert any(card.suit == suit and card.rank == rank for card in deck)
 
-def test_deal_cards():
+    def test_deal_cards(self):
     deck = create_deck()
     initial_len = len(deck)
     dealt = deal_cards(deck, 2)
@@ -22,7 +23,7 @@ def test_deal_cards():
     assert len(dealt) == 1
     assert len(deck) == 0
 
-def test_serialize_deserialize_cards():
+    def test_serialize_deserialize_cards(self):
     original_cards = [Card('A', '♠'), Card('K', '♥')]
     serialized = serialize_cards(original_cards)
     deserialized = deserialize_cards(serialized)
@@ -32,7 +33,7 @@ def test_serialize_deserialize_cards():
         assert orig.rank == des.rank
         assert orig.suit == des.suit
 
-def test_evaluate_hand():
+    def test_evaluate_hand(self):
     # Test royal flush
     royal_flush = [
         Card('A', '♠'), Card('K', '♠'), Card('Q', '♠'),
@@ -57,7 +58,7 @@ def test_evaluate_hand():
     hand_name, best_cards = evaluate_hand(full_house[:2], full_house[2:])
     assert hand_name == 'Full House'
 
-def test_check_straight():
+    def test_check_straight(self):
     straight = [
         Card('9', '♠'), Card('8', '♥'), Card('7', '♦'),
         Card('6', '♣'), Card('5', '♠')
@@ -66,7 +67,7 @@ def test_check_straight():
     assert result is not None
     assert len(result) == 5
 
-def test_check_flush():
+    def test_check_flush(self):
     flush = [
         Card('A', '♠'), Card('K', '♠'), Card('Q', '♠'),
         Card('J', '♠'), Card('9', '♠')
