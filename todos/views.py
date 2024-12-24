@@ -1,3 +1,4 @@
+import random
 from rest_framework import viewsets, status, generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.views.generic import TemplateView
@@ -12,6 +13,7 @@ from .serializers import (
     PlayerSerializer, GameRoundSerializer
 )
 from rest_framework.views import APIView
+from .poker_utils import create_deck, deal_cards, serialize_cards
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
