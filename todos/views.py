@@ -220,12 +220,54 @@ class LobbyView(APIView):
             lobby.status = 'IN_PROGRESS'
             lobby.save()
 
+            # Initialize deck and deal cards
+            deck = create_deck()
+            random.shuffle(deck)
+            
             # Create first game round
-            GameRound.objects.create(
+            game_round = GameRound.objects.create(
                 lobby=lobby,
                 round_number=1,
-                dealer_position=0
+                dealer_position=0,
+                deck=serialize_cards(deck)
             )
+            
+            # Deal hole cards to each player
+            active_players = list(lobby.players.filter(is_active=True))
+            for player in active_players:
+                hole_cards = deal_cards(deck, 2)
+                player.hole_cards = serialize_cards(hole_cards)
+                player.save()
+            
+            # Update deck state
+            game_round.deck = serialize_cards(deck)
+            game_round.save()
+            
+            # Set up blinds
+            small_blind_pos = (game_round.dealer_position + 1) % len(active_players)
+            big_blind_pos = (game_round.dealer_position + 2) % len(active_players)
+            
+            # Post blinds
+            small_blind_player = active_players[small_blind_pos]
+            big_blind_player = active_players[big_blind_pos]
+            
+            small_blind_player.chips -= game_round.small_blind
+            small_blind_player.current_bet = game_round.small_blind
+            small_blind_player.save()
+            
+            big_blind_player.chips -= game_round.big_blind
+            big_blind_player.current_bet = game_round.big_blind
+            big_blind_player.save()
+            
+            # Set initial bet level
+            lobby.current_bet = game_round.big_blind
+            lobby.current_pot = game_round.small_blind + game_round.big_blind
+            lobby.save()
+            
+            # Set first player's turn (after big blind)
+            first_to_act = active_players[(big_blind_pos + 1) % len(active_players)]
+            first_to_act.is_turn = True
+            first_to_act.save()
 
             return Response({
                 'message': 'Game started successfully',
@@ -482,6 +524,33 @@ class LobbyView(APIView):
             return next_players.first()
         return active_players.first()
 
+    def validate_bet(self, player, amount, action):
+        """Validate if a betting action is legal"""
+        lobby = player.lobby
+        current_round = lobby.rounds.last()
+        
+        if not player.is_turn:
+            return False, "Not your turn"
+            
+        if player.has_folded:
+            return False, "Player has folded"
+            
+        if action == 'raise':
+            # Minimum raise is double the current bet
+            min_raise = lobby.current_bet * 2
+            if amount < min_raise:
+                return False, f"Minimum raise is {min_raise}"
+                
+            if amount > player.chips:
+                return False, "Not enough chips"
+                
+        elif action == 'call':
+            call_amount = lobby.current_bet - player.current_bet
+            if call_amount > player.chips:
+                return False, "Not enough chips to call"
+                
+        return True, None
+        
     def raise_bet(self, request):
         amount = request.data.get('amount')
         if not amount:

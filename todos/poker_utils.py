@@ -22,7 +22,27 @@ def create_deck() -> List[Card]:
 
 def deal_cards(deck: List[Card], num_cards: int) -> List[Card]:
     """Deal specified number of cards from deck"""
-    return [deck.pop() for _ in range(num_cards)]
+    dealt_cards = []
+    for _ in range(num_cards):
+        if len(deck) > 0:
+            dealt_cards.append(deck.pop())
+    return dealt_cards
+
+def serialize_cards(cards: List[Card]) -> str:
+    """Convert list of cards to string format for storage"""
+    return ','.join(str(card) for card in cards)
+
+def deserialize_cards(cards_str: str) -> List[Card]:
+    """Convert string format back to list of Card objects"""
+    if not cards_str:
+        return []
+    cards = []
+    for card_str in cards_str.split(','):
+        if len(card_str) >= 2:
+            rank = card_str[:-1]
+            suit = card_str[-1]
+            cards.append(Card(rank, suit))
+    return cards
 
 def evaluate_hand(hole_cards: List[Card], community_cards: List[Card]) -> Tuple[str, List[Card]]:
     """

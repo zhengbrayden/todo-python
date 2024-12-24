@@ -55,6 +55,7 @@ class Player(models.Model):
     position = models.IntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
+    hole_cards = models.CharField(max_length=50, blank=True)  # Store hole cards as serialized string
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -87,6 +88,8 @@ class GameRound(models.Model):
     deck = models.CharField(max_length=500, blank=True)  # Serialized deck state
     small_blind = models.IntegerField(default=10)
     big_blind = models.IntegerField(default=20)
+    betting_round = models.IntegerField(default=0)  # Track betting rounds within each stage
+    last_raise_position = models.IntegerField(null=True)  # Position of last player who raised
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
