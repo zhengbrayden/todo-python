@@ -6,6 +6,7 @@ from django.urls import reverse
 
 class GameFlowTests(TestCase):
     def setUp(self):
+        """Initialize test environment"""
         self.client = APIClient()
         
         # Create test users
@@ -13,112 +14,118 @@ class GameFlowTests(TestCase):
         for i in range(4):
             user = User.objects.create_user(
                 username=f'testuser{i}',
-                password='testpass123'
+                password='testpass123',
+                email=f'testuser{i}@example.com'
             )
             self.users.append(user)
-            
-        # Create test lobby
-        self.lobby = Lobby.objects.create(
-            name='test_lobby',
-            creator=self.users[0],
-            status='WAITING'
-        )
-        
-        # Add players to lobby
-        for i, user in enumerate(self.users):
-            Player.objects.create(
-                user=user,
-                lobby=self.lobby,
-                position=i,
-                chips=1000
-            )
     def test_create_lobby(self):
         """Test creating a new lobby"""
-        client = APIClient()
-        client.force_authenticate(user=self.users[0])
+        self.client.force_authenticate(user=self.users[0])
         
-        response = client.post(reverse('create_lobby', args=['new_test_lobby']))
+        response = self.client.post('/api/lobby/create/new_test_lobby/')
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Lobby.objects.filter(name='new_test_lobby').exists())
 
     def test_join_lobby(self):
         """Test joining an existing lobby"""
-        client = APIClient()
-        client.force_authenticate(user=self.users[1])
+        # Create a lobby first
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/create/test_lobby/')
         
-        response = client.post(reverse('join_lobby', args=[self.lobby.name]))
+        # Switch to second user and try joining
+        self.client.force_authenticate(user=self.users[1])
+        response = self.client.post('/api/lobby/join/test_lobby/')
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(Player.objects.filter(user=self.users[1], lobby=self.lobby).exists())
+        
+        # Verify player was added
+        self.assertTrue(
+            Player.objects.filter(
+                user=self.users[1],
+                lobby__name='test_lobby'
+            ).exists()
+        )
 
     def test_start_game(self):
         """Test starting a game"""
-        client = APIClient()
-        client.force_authenticate(user=self.users[0])
+        # Create and join lobby
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/create/test_lobby/')
         
-        response = client.post(reverse('start_game'))
+        self.client.force_authenticate(user=self.users[1])
+        self.client.post('/api/lobby/join/test_lobby/')
+        
+        # Start game as lobby creator
+        self.client.force_authenticate(user=self.users[0])
+        response = self.client.post('/api/lobby/start/')
         self.assertEqual(response.status_code, 200)
         
-        self.lobby.refresh_from_db()
-        self.assertEqual(self.lobby.status, 'IN_PROGRESS')
+        # Verify game started
+        lobby = Lobby.objects.get(name='test_lobby')
+        self.assertEqual(lobby.status, 'IN_PROGRESS')
         
-        # Check if cards were dealt
-        for player in self.lobby.players.all():
+        # Verify cards were dealt
+        players = Player.objects.filter(lobby=lobby)
+        for player in players:
             self.assertNotEqual(player.hole_cards, '')
 
     def test_betting_round(self):
         """Test betting actions during a game"""
-        client = APIClient()
-        self.lobby.status = 'IN_PROGRESS'
-        self.lobby.save()
+        # Setup game
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/create/test_lobby/')
         
-        GameRound.objects.create(
-            lobby=self.lobby,
-            round_number=1,
-            current_stage='PREFLOP'
-        )
+        self.client.force_authenticate(user=self.users[1])
+        self.client.post('/api/lobby/join/test_lobby/')
         
-        # Test call
-        player = self.lobby.players.first()
-        player.is_turn = True
-        player.save()
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/start/')
         
-        client.force_authenticate(user=player.user)
-        response = client.post(reverse('call'))
+        # Get active player
+        lobby = Lobby.objects.get(name='test_lobby')
+        player = Player.objects.get(lobby=lobby, is_turn=True)
+        self.client.force_authenticate(user=player.user)
+        
+        # Test betting actions
+        response = self.client.post('/api/lobby/call/')
         self.assertEqual(response.status_code, 200)
         
-        # Test raise
-        response = client.post(reverse('raise_bet'), {'amount': 50})
+        response = self.client.post('/api/lobby/raise/', {'amount': 50})
         self.assertEqual(response.status_code, 200)
         
-        # Test fold
-        response = client.post(reverse('fold'))
+        response = self.client.post('/api/lobby/fold/')
         self.assertEqual(response.status_code, 200)
         
+        # Verify fold
         player.refresh_from_db()
         self.assertTrue(player.has_folded)
 
     def test_all_in_scenario(self):
         """Test all-in betting scenario"""
-        client = APIClient()
-        self.lobby.status = 'IN_PROGRESS'
-        self.lobby.save()
+        # Setup game
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/create/test_lobby/')
         
-        game_round = GameRound.objects.create(
-            lobby=self.lobby,
-            round_number=1
-        )
+        self.client.force_authenticate(user=self.users[1])
+        self.client.post('/api/lobby/join/test_lobby/')
         
-        player = self.lobby.players.first()
-        player.is_turn = True
+        self.client.force_authenticate(user=self.users[0])
+        self.client.post('/api/lobby/start/')
+        
+        # Get active player and set up all-in scenario
+        lobby = Lobby.objects.get(name='test_lobby')
+        player = Player.objects.get(lobby=lobby, is_turn=True)
         player.chips = 100  # Set low chips for all-in
         player.save()
         
-        client.force_authenticate(user=player.user)
-        response = client.post(reverse('raise_bet'), {'amount': 100})
+        # Perform all-in raise
+        self.client.force_authenticate(user=player.user)
+        response = self.client.post('/api/lobby/raise/', {'amount': 100})
         self.assertEqual(response.status_code, 200)
         
+        # Verify all-in state
         player.refresh_from_db()
-        game_round.refresh_from_db()
-        
         self.assertEqual(player.chips, 0)
+        
+        # Verify side pot creation
+        game_round = GameRound.objects.get(lobby=lobby)
         self.assertIn(str(player.current_bet), game_round.side_pots)
