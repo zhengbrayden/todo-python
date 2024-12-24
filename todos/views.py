@@ -6,8 +6,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from .models import Todo
-from .serializers import TodoSerializer, UserSerializer
+from .models import Todo, Lobby, Player
+from .serializers import (
+    TodoSerializer, UserSerializer, LobbySerializer,
+    PlayerSerializer, GameRoundSerializer
+)
 from rest_framework.views import APIView
                                                                                                                                                                  
 class TodoView(APIView):
