@@ -8,7 +8,122 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from .models import Todo
 from .serializers import TodoSerializer, UserSerializer
-
+ from rest_framework.views import APIView
+                                                                                                                                                                 
+ from rest_framework.views import APIView
+ from rest_framework.response import Response
+ from rest_framework import status
+ from rest_framework.permissions import IsAuthenticated
+                                                                                                                                                                 
+class TodoView(APIView):
+    permission_classes = [IsAuthenticated]
+                                                                                                                                                                
+    # GET /todos/
+    def get(self, request):
+        todos = Todo.objects.filter(user=request.user)
+        serializer = TodoSerializer(todos, many=True)
+        return Response(serializer.data)
+                                                                                                                                                                
+    # POST /todos/
+    def post(self, request):
+        serializer = TodoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                                                                                                                                                                
+# For individual todo operations
+class TodoDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+                                                                                                                                                                
+    def get_object(self, pk, user):
+        try:
+            return Todo.objects.get(pk=pk, user=user)
+        except Todo.DoesNotExist:
+            return None
+                                                                                                                                                                
+    # GET /todos/<pk>/
+    def get(self, request, pk):
+        todo = self.get_object(pk, request.user)
+        if not todo:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = TodoSerializer(todo)
+        return Response(serializer.data)
+                                                                                                                                                                
+    # PUT /todos/<pk>/
+    def put(self, request, pk):
+        todo = self.get_object(pk, request.user)
+        if not todo:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = TodoSerializer(todo, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                                                                                                                                                                
+    # DELETE /todos/<pk>/
+    def delete(self, request, pk):
+        todo = self.get_object(pk, request.user)
+        if not todo:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        todo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+                                                                                
+class TodoView(APIView):
+     permission_classes = [IsAuthenticated]
+                                                                                                                                                                 
+     # GET /todos/
+     def get(self, request):
+         todos = Todo.objects.filter(user=request.user)
+         serializer = TodoSerializer(todos, many=True)
+         return Response(serializer.data)
+                                                                                                                                                                 
+     # POST /todos/
+     def post(self, request):
+         serializer = TodoSerializer(data=request.data)
+         if serializer.is_valid():
+             serializer.save(user=request.user)
+             return Response(serializer.data, status=status.HTTP_201_CREATED)
+         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                                                                                                                                                                 
+ # For individual todo operations
+ class TodoDetailView(APIView):
+     permission_classes = [IsAuthenticated]
+                                                                                                                                                                 
+     def get_object(self, pk, user):
+         try:
+             return Todo.objects.get(pk=pk, user=user)
+         except Todo.DoesNotExist:
+             return None
+                                                                                                                                                                 
+     # GET /todos/<pk>/
+     def get(self, request, pk):
+         todo = self.get_object(pk, request.user)
+         if not todo:
+             return Response(status=status.HTTP_404_NOT_FOUND)
+         serializer = TodoSerializer(todo)
+         return Response(serializer.data)
+                                                                                                                                                                 
+     # PUT /todos/<pk>/
+     def put(self, request, pk):
+         todo = self.get_object(pk, request.user)
+         if not todo:
+             return Response(status=status.HTTP_404_NOT_FOUND)
+         serializer = TodoSerializer(todo, data=request.data)
+         if serializer.is_valid():
+             serializer.save()
+             return Response(serializer.data)
+         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                                                                                                                                                                 
+     # DELETE /todos/<pk>/
+     def delete(self, request, pk):
+         todo = self.get_object(pk, request.user)
+         if not todo:
+             return Response(status=status.HTTP_404_NOT_FOUND)
+         todo.delete()
+         return Response(status=status.HTTP_204_NO_CONTENT)
+                                                                                                                                                                 
+                                                                                                                                                                 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
@@ -52,6 +167,12 @@ class RegisterView(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+#  • GET /todos/ - List todos (paginated)
+#  • POST /todos/ - Create new todo
+#  • GET /todos/{id}/ - Get specific todo
+#  • PUT /todos/{id}/ - Update todo
+#  • PATCH /todos/{id}/ - Partial update todo
+#  • DELETE /todos/{id}/ - Delete todo
 class TodoViewSet(viewsets.ModelViewSet):
     serializer_class = TodoSerializer
     permission_classes = (IsAuthenticated,)
