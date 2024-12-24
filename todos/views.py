@@ -423,19 +423,35 @@ class LobbyView(APIView):
         """Helper method to advance game state after all players have acted"""
         current_round = lobby.rounds.last()
         active_players = lobby.players.filter(is_active=True, has_folded=False)
+        deck = deserialize_cards(current_round.deck)
         
         # Check if all active players have acted (no one's turn)
         if not any(player.is_turn for player in active_players):
             if current_round.current_stage == 'PREFLOP':
+                # Deal flop (3 cards)
+                flop_cards = deal_cards(deck, 3)
+                current_round.community_cards = serialize_cards(flop_cards)
                 current_round.current_stage = 'FLOP'
             elif current_round.current_stage == 'FLOP':
+                # Deal turn (1 card)
+                turn_card = deal_cards(deck, 1)
+                community_cards = deserialize_cards(current_round.community_cards)
+                community_cards.extend(turn_card)
+                current_round.community_cards = serialize_cards(community_cards)
                 current_round.current_stage = 'TURN'
             elif current_round.current_stage == 'TURN':
+                # Deal river (1 card)
+                river_card = deal_cards(deck, 1)
+                community_cards = deserialize_cards(current_round.community_cards)
+                community_cards.extend(river_card)
+                current_round.community_cards = serialize_cards(community_cards)
                 current_round.current_stage = 'RIVER'
             elif current_round.current_stage == 'RIVER':
-                self.end_round(lobby)
+                self.showdown(lobby)
                 return
             
+            # Save updated deck and round state
+            current_round.deck = serialize_cards(deck)
             current_round.save()
             
             # Reset betting for new stage
@@ -450,40 +466,48 @@ class LobbyView(APIView):
                 next_player.is_turn = True
                 next_player.save()
 
-    def end_round(self, lobby):
-        """Handle end of round logic"""
+    def showdown(self, lobby):
+        """Handle showdown and determine winner"""
+        current_round = lobby.rounds.last()
         active_players = lobby.players.filter(is_active=True, has_folded=False)
+        community_cards = deserialize_cards(current_round.community_cards)
         
-        # For now, just give pot to last remaining player or split among active players
-        if active_players.count() == 1:
-            winner = active_players.first()
-        else:
-            # In a real implementation, you would evaluate hands here
-            # For now, just split the pot
-            split_amount = lobby.current_pot // active_players.count()
-            for player in active_players:
-                player.chips += split_amount
-                player.save()
-            
-            if lobby.current_pot % active_players.count() > 0:
-                # Give remainder to first player
-                active_players.first().chips += lobby.current_pot % active_players.count()
-                active_players.first().save()
-
-        # Reset game state for next round
-        lobby.current_pot = 0
-        lobby.current_bet = 0
-        lobby.save()
+        # Evaluate each player's hand
+        player_hands = []
+        for player in active_players:
+            hole_cards = deserialize_cards(player.hole_cards)
+            hand_name, best_cards = evaluate_hand(hole_cards, community_cards)
+            player_hands.append({
+                'player': player,
+                'hand_name': hand_name,
+                'best_cards': best_cards
+            })
+        
+        # Sort hands by rank (using hand_name as proxy for now)
+        # In a full implementation, would need more sophisticated comparison
+        player_hands.sort(key=lambda x: [
+            'High Card', 'Pair', 'Two Pair', 'Three of a Kind',
+            'Straight', 'Flush', 'Full House', 'Four of a Kind',
+            'Straight Flush'
+        ].index(x['hand_name']), reverse=True)
+        
+        # Award pot to winner(s)
+        winning_hand = player_hands[0]['hand_name']
+        winners = [ph['player'] for ph in player_hands if ph['hand_name'] == winning_hand]
+        
+        # Split pot among winners
+        split_amount = lobby.current_pot // len(winners)
+        for winner in winners:
+            winner.chips += split_amount
+            winner.save()
+        
+        # Handle any remainder chips
+        if lobby.current_pot % len(winners) > 0:
+            winners[0].chips += lobby.current_pot % len(winners)
+            winners[0].save()
 
         # Start new round
-        current_round = lobby.rounds.last()
-        new_dealer_position = (current_round.dealer_position + 1) % active_players.count()
-        
-        GameRound.objects.create(
-            lobby=lobby,
-            round_number=current_round.round_number + 1,
-            dealer_position=new_dealer_position
-        )
+        self.start_new_round(lobby)
 
         # Reset player states
         for player in lobby.players.filter(is_active=True):
@@ -525,6 +549,50 @@ class LobbyView(APIView):
         if next_players.exists():
             return next_players.first()
         return active_players.first()
+
+    def start_new_round(self, lobby):
+        """Initialize a new round of poker"""
+        active_players = lobby.players.filter(is_active=True)
+        current_round = lobby.rounds.last()
+        
+        # Reset game state
+        lobby.current_pot = 0
+        lobby.current_bet = 0
+        lobby.save()
+        
+        # Create new deck and shuffle
+        deck = create_deck()
+        random.shuffle(deck)
+        
+        # Calculate new dealer position
+        new_dealer_position = (current_round.dealer_position + 1) % active_players.count()
+        
+        # Create new round
+        new_round = GameRound.objects.create(
+            lobby=lobby,
+            round_number=current_round.round_number + 1,
+            dealer_position=new_dealer_position,
+            deck=serialize_cards(deck)
+        )
+        
+        # Deal new hole cards
+        for player in active_players:
+            hole_cards = deal_cards(deck, 2)
+            player.hole_cards = serialize_cards(hole_cards)
+            player.has_folded = False
+            player.current_bet = 0
+            player.is_turn = False
+            player.save()
+        
+        # Update deck state
+        new_round.deck = serialize_cards(deck)
+        new_round.save()
+        
+        # Set first player's turn
+        next_player = self.get_next_player(lobby)
+        if next_player:
+            next_player.is_turn = True
+            next_player.save()
 
     def validate_bet(self, player, amount, action):
         """Validate if a betting action is legal"""
