@@ -1,71 +1,82 @@
-### Register a new user
+### Register player 1
 POST http://localhost:8000/api/register/
 Content-Type: application/json
 
 {
-    "name": "testuser",
+    "name": "player1",
     "password": "testpass123",
-    "email": "test@example.com"
+    "email": "player1@example.com"
 }
 
-### Register another user (should fail if username exists)
+### Register player 2
 POST http://localhost:8000/api/register/
 Content-Type: application/json
 
 {
-    "name": "testuser",
+    "name": "player2",
     "password": "testpass123",
-    "email": "test2@example.com"
+    "email": "player2@example.com"
 }
 
-### Login with username
+### Login player 1
 POST http://localhost:8000/api/login/
 Content-Type: application/json
 
 {
-    "name": "testus",
+    "name": "player1",
     "password": "testpass123"
 }
 
-### Login with email
+### Login player 2
 POST http://localhost:8000/api/login/
 Content-Type: application/json
 
 {
-    "name": "test@example.com",
+    "name": "player2",
     "password": "testpass123"
 }
 
-### Get all todos (with auth)
-GET http://localhost:8000/api/todos/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
+### Create a new lobby (player 1)
+POST http://localhost:8000/api/lobby/create/test_game/
+Authorization: Bearer <player1_token>
 
-### Get a single todo (with auth)
-GET http://localhost:8000/api/todos/1/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
+### Join lobby (player 2)
+POST http://localhost:8000/api/lobby/join/test_game/
+Authorization: Bearer <player2_token>
 
-### Create a new todo (with auth)
-POST http://localhost:8000/api/todos/
+### Get lobby info
+GET http://localhost:8000/api/lobby/info/test_game/
+Authorization: Bearer <player1_token>
+
+### List all lobbies
+GET http://localhost:8000/api/lobby/info/
+Authorization: Bearer <player1_token>
+
+### Get player status
+GET http://localhost:8000/api/lobby/status/
+Authorization: Bearer <player1_token>
+
+### Start game (player 1 - creator)
+POST http://localhost:8000/api/lobby/start/
+Authorization: Bearer <player1_token>
+
+### Player actions during game
+POST http://localhost:8000/api/lobby/call/
+Authorization: Bearer <player1_token>
+
+### 
+POST http://localhost:8000/api/lobby/fold/
+Authorization: Bearer <player2_token>
+
+### 
+POST http://localhost:8000/api/lobby/raise/
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
+Authorization: Bearer <player1_token>
 
 {
-    "title": "Test Todo",
-    "description": "This is a test todo item",
-    "completed": false
+    "amount": 50
 }
 
-### Update a todo (with auth)
-PUT http://localhost:8000/api/todos/1/
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
-
-{
-    "title": "Updated Todo",
-    "description": "This todo has been updated",
-    "completed": true
-}
-
-### Delete a todo (with auth)
-DELETE http://localhost:8000/api/todos/1/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0NjI5MzY5LCJpYXQiOjE3MzQ1NDI5NjksImp0aSI6IjYyZTIxMTA1ODIxNDQ4ZDk4MzVjMDdmN2UyOTQwNzJlIiwidXNlcl9pZCI6MX0.LDZ6C2R1Uw3G81vG1_IAHFM6o2WJcsdxnCD6bgSMrik
+### Leave lobby
+DELETE http://localhost:8000/api/lobby/leave/
+Authorization: Bearer <player1_token>
