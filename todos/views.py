@@ -13,7 +13,10 @@ from .serializers import (
     PlayerSerializer, GameRoundSerializer
 )
 from rest_framework.views import APIView
-from .poker_utils import create_deck, deal_cards, serialize_cards
+from .poker_utils import (
+    create_deck, deal_cards, serialize_cards, deserialize_cards,
+    evaluate_hand
+)
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
