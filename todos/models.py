@@ -90,6 +90,7 @@ class GameRound(models.Model):
     big_blind = models.IntegerField(default=20)
     betting_round = models.IntegerField(default=0)  # Track betting rounds within each stage
     last_raise_position = models.IntegerField(null=True)  # Position of last player who raised
+    side_pots = models.JSONField(default=dict)  # Track side pots for all-in situations
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

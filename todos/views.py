@@ -321,6 +321,7 @@ class LobbyView(APIView):
         try:
             player = Player.objects.get(user=request.user, is_active=True)
             lobby = player.lobby
+            current_round = lobby.rounds.last()
 
             # Verify game is in progress
             if lobby.status != 'IN_PROGRESS':
@@ -329,27 +330,26 @@ class LobbyView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Verify it's player's turn
-            if not player.is_turn:
+            # Validate the call
+            is_valid, message = self.validate_bet(player, 0, 'call')
+            if not is_valid:
                 return Response(
-                    {'error': 'Not your turn'},
+                    {'error': message},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             # Calculate call amount
-            call_amount = lobby.current_bet - player.current_bet
+            call_amount = min(lobby.current_bet - player.current_bet, player.chips)
             
-            # Check if player has enough chips
-            if player.chips < call_amount:
-                return Response(
-                    {'error': 'Not enough chips to call'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             # Process the call
             player.chips -= call_amount
-            player.current_bet = lobby.current_bet
+            player.current_bet += call_amount
             player.is_turn = False
+            
+            # Handle all-in
+            if player.chips == 0:
+                self.handle_all_in(player, current_round)
+                
             player.save()
 
             # Update lobby pot
@@ -360,7 +360,7 @@ class LobbyView(APIView):
             self.advance_game_state(lobby)
 
             return Response({
-                'message': 'Call successful',
+                'message': 'Call successful' if player.chips > 0 else 'All-in',
                 'amount': call_amount,
                 'player': PlayerSerializer(player).data
             })
@@ -610,17 +610,23 @@ class LobbyView(APIView):
             
         if action == 'raise':
             # Minimum raise is double the current bet
-            min_raise = lobby.current_bet * 2
+            min_raise = max(lobby.current_bet * 2, current_round.big_blind)
             if amount < min_raise:
                 return False, f"Minimum raise is {min_raise}"
-                
+            
+            # Maximum raise is all-in
             if amount > player.chips:
                 return False, "Not enough chips"
                 
+            # Track last raise position for betting round
+            current_round.last_raise_position = player.position
+            current_round.save()
+                
         elif action == 'call':
             call_amount = lobby.current_bet - player.current_bet
+            # Allow all-in if can't cover full call
             if call_amount > player.chips:
-                return False, "Not enough chips to call"
+                return True, "All-in"
                 
         return True, None
         
@@ -743,3 +749,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+    def handle_all_in(self, player, current_round):
+        """Handle side pots when a player goes all-in"""
+        side_pots = current_round.side_pots
+        
+        # Create new side pot for this all-in amount
+        if str(player.current_bet) not in side_pots:
+            side_pots[str(player.current_bet)] = {
+                'amount': 0,
+                'eligible_players': []
+            }
+        
+        # Add player to all eligible side pots
+        for bet_amount, pot in side_pots.items():
+            if int(bet_amount) <= player.current_bet:
+                pot['eligible_players'].append(player.id)
+                
+        current_round.side_pots = side_pots
+        current_round.save()
