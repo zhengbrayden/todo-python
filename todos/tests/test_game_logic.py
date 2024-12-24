@@ -36,9 +36,9 @@ class GameFlowTests(TestCase):
         user = test_users[0]
         api_client.force_authenticate(user=user)
         
-        response = api_client.post(reverse('create_lobby', args=['new_lobby']))
+        response = api_client.post(reverse('create_lobby', args=['test_lobby']))
         assert response.status_code == 201
-        assert Lobby.objects.filter(name='new_lobby').exists()
+        assert Lobby.objects.filter(name='test_lobby').exists()
 
     def test_join_lobby(self, api_client, test_lobby, test_users):
         user = test_users[1]
