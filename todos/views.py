@@ -180,12 +180,68 @@ class LobbyView(APIView):
 
     # Individual action methods
     def create_lobby(self, request, lobby_name):
-        # TODO: Implement lobby creation logic
-        return Response({'message': f'Created lobby: {lobby_name}'})
+        # Check if lobby already exists
+        if Lobby.objects.filter(name=lobby_name).exists():
+            return Response(
+                {'error': 'Lobby already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create new lobby
+        lobby = Lobby.objects.create(
+            name=lobby_name,
+            creator=request.user,
+            status='WAITING'
+        )
+        
+        # Add creator as first player
+        Player.objects.create(
+            user=request.user,
+            lobby=lobby,
+            position=0
+        )
+        
+        return Response(LobbySerializer(lobby).data, status=status.HTTP_201_CREATED)
 
     def join_lobby(self, request, lobby_name):
-        # TODO: Implement join lobby logic
-        return Response({'message': f'Joined lobby: {lobby_name}'})
+        try:
+            lobby = Lobby.objects.get(name=lobby_name)
+        except Lobby.DoesNotExist:
+            return Response(
+                {'error': 'Lobby not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if player is already in a lobby
+        if Player.objects.filter(user=request.user, is_active=True).exists():
+            return Response(
+                {'error': 'Already in a lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if lobby is full
+        current_players = lobby.players.filter(is_active=True).count()
+        if current_players >= lobby.max_players:
+            return Response(
+                {'error': 'Lobby is full'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if game already started
+        if lobby.status != 'WAITING':
+            return Response(
+                {'error': 'Game already in progress'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Add player to lobby
+        Player.objects.create(
+            user=request.user,
+            lobby=lobby,
+            position=current_players
+        )
+
+        return Response(LobbySerializer(lobby).data)
 
     def leave_lobby(self, request):
         # TODO: Implement leave lobby logic
