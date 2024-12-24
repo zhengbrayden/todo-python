@@ -167,41 +167,274 @@ class LobbyView(APIView):
         return Response(LobbySerializer(lobby).data)
 
     def leave_lobby(self, request):
-        # TODO: Implement leave lobby logic
-        return Response({'message': 'Left lobby'})
+        try:
+            # Find player's active lobby
+            player = Player.objects.get(user=request.user, is_active=True)
+            lobby = player.lobby
+
+            # Mark player as inactive
+            player.is_active = False
+            player.save()
+
+            # If this was the creator and other players exist, transfer ownership
+            if lobby.creator == request.user:
+                next_player = lobby.players.filter(is_active=True).first()
+                if next_player:
+                    lobby.creator = next_player.user
+                    lobby.save()
+
+            # If no active players remain, mark lobby as finished
+            if not lobby.players.filter(is_active=True).exists():
+                lobby.status = 'FINISHED'
+                lobby.save()
+
+            return Response({'message': 'Successfully left lobby'})
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def start_game(self, request):
-        # TODO: Implement start game logic
-        return Response({'message': 'Game started'})
+        try:
+            # Find player's active lobby
+            player = Player.objects.get(user=request.user, is_active=True)
+            lobby = player.lobby
+
+            # Verify user is lobby creator
+            if lobby.creator != request.user:
+                return Response(
+                    {'error': 'Only lobby creator can start the game'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Check minimum players
+            active_players = lobby.players.filter(is_active=True)
+            if active_players.count() < lobby.min_players:
+                return Response(
+                    {'error': 'Not enough players to start'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Start the game
+            lobby.status = 'IN_PROGRESS'
+            lobby.save()
+
+            # Create first game round
+            GameRound.objects.create(
+                lobby=lobby,
+                round_number=1,
+                dealer_position=0
+            )
+
+            return Response({
+                'message': 'Game started successfully',
+                'lobby': LobbySerializer(lobby).data
+            })
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def list_lobbies(self, request):
-        # TODO: Implement list all lobbies logic
-        return Response({'message': 'List of all lobbies'})
+        # Get all lobbies that are either waiting or in progress
+        lobbies = Lobby.objects.filter(
+            status__in=['WAITING', 'IN_PROGRESS']
+        ).order_by('-created_at')
+        
+        return Response({
+            'lobbies': LobbySerializer(lobbies, many=True).data
+        })
 
     def get_lobby_info(self, request, lobby_name):
-        # TODO: Implement get specific lobby info logic
-        return Response({'message': f'Info for lobby: {lobby_name}'})
+        try:
+            lobby = Lobby.objects.get(name=lobby_name)
+            return Response(LobbySerializer(lobby).data)
+        except Lobby.DoesNotExist:
+            return Response(
+                {'error': 'Lobby not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def get_player_status(self, request):
-        # TODO: Implement get player status in current lobby
-        return Response({'message': 'Player status in current lobby'})
+        try:
+            player = Player.objects.get(user=request.user, is_active=True)
+            return Response({
+                'player': PlayerSerializer(player).data,
+                'lobby': LobbySerializer(player.lobby).data
+            })
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def call(self, request):
-        # TODO: Implement call action logic
-        return Response({'message': 'Called'})
+        try:
+            player = Player.objects.get(user=request.user, is_active=True)
+            lobby = player.lobby
+
+            # Verify game is in progress
+            if lobby.status != 'IN_PROGRESS':
+                return Response(
+                    {'error': 'Game is not in progress'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify it's player's turn
+            if not player.is_turn:
+                return Response(
+                    {'error': 'Not your turn'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Calculate call amount
+            call_amount = lobby.current_bet - player.current_bet
+            
+            # Check if player has enough chips
+            if player.chips < call_amount:
+                return Response(
+                    {'error': 'Not enough chips to call'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Process the call
+            player.chips -= call_amount
+            player.current_bet = lobby.current_bet
+            player.is_turn = False
+            player.save()
+
+            # Update lobby pot
+            lobby.current_pot += call_amount
+            lobby.save()
+
+            return Response({
+                'message': 'Call successful',
+                'amount': call_amount,
+                'player': PlayerSerializer(player).data
+            })
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def fold(self, request):
-        # TODO: Implement fold action logic
-        return Response({'message': 'Folded'})
+        try:
+            player = Player.objects.get(user=request.user, is_active=True)
+            lobby = player.lobby
+
+            # Verify game is in progress
+            if lobby.status != 'IN_PROGRESS':
+                return Response(
+                    {'error': 'Game is not in progress'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify it's player's turn
+            if not player.is_turn:
+                return Response(
+                    {'error': 'Not your turn'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Process the fold
+            player.has_folded = True
+            player.is_turn = False
+            player.save()
+
+            # Check if only one player remains
+            active_players = lobby.players.filter(
+                is_active=True, 
+                has_folded=False
+            ).count()
+            
+            if active_players == 1:
+                # End the round if only one player remains
+                winner = lobby.players.get(is_active=True, has_folded=False)
+                winner.chips += lobby.current_pot
+                winner.save()
+                
+                lobby.current_pot = 0
+                lobby.current_bet = 0
+                lobby.save()
+
+            return Response({
+                'message': 'Fold successful',
+                'player': PlayerSerializer(player).data
+            })
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def raise_bet(self, request):
-        # Amount should be passed in request body
         amount = request.data.get('amount')
         if not amount:
-            return Response({'error': 'Amount required for raise'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
-        # TODO: Implement raise logic
-        return Response({'message': f'Raised by {amount}'})
+            return Response(
+                {'error': 'Amount required for raise'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            amount = int(amount)
+        except ValueError:
+            return Response(
+                {'error': 'Amount must be a number'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            player = Player.objects.get(user=request.user, is_active=True)
+            lobby = player.lobby
+
+            # Verify game is in progress
+            if lobby.status != 'IN_PROGRESS':
+                return Response(
+                    {'error': 'Game is not in progress'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify it's player's turn
+            if not player.is_turn:
+                return Response(
+                    {'error': 'Not your turn'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Calculate total amount needed (call amount + raise amount)
+            total_amount = (lobby.current_bet - player.current_bet) + amount
+
+            # Check if player has enough chips
+            if player.chips < total_amount:
+                return Response(
+                    {'error': 'Not enough chips for this raise'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Process the raise
+            player.chips -= total_amount
+            player.current_bet += total_amount
+            player.is_turn = False
+            player.save()
+
+            # Update lobby
+            lobby.current_pot += total_amount
+            lobby.current_bet = player.current_bet
+            lobby.save()
+
+            return Response({
+                'message': 'Raise successful',
+                'amount': amount,
+                'player': PlayerSerializer(player).data
+            })
+        except Player.DoesNotExist:
+            return Response(
+                {'error': 'Not currently in any lobby'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
