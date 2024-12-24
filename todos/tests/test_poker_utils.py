@@ -1,5 +1,5 @@
 import pytest
-from ..poker_utils import *
+from todos.poker_utils import *
 
 def test_create_deck():
     deck = create_deck()
