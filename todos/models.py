@@ -83,7 +83,10 @@ class GameRound(models.Model):
         default='PREFLOP'
     )
     dealer_position = models.IntegerField(default=0)
-    community_cards = models.CharField(max_length=20, blank=True)
+    community_cards = models.CharField(max_length=100, blank=True)
+    deck = models.CharField(max_length=500, blank=True)  # Serialized deck state
+    small_blind = models.IntegerField(default=10)
+    big_blind = models.IntegerField(default=20)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
