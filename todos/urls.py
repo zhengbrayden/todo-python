@@ -1,9 +1,8 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView
 from django.urls import path
 from .views import CustomTokenObtainPairView
-from .views import TodoViewSet, RegisterView, LobbyView
+from .views import RegisterView, LobbyView
 
 urlpatterns = [
     # Authentication endpoints
